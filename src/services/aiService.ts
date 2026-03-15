@@ -21,6 +21,12 @@ interface TranscriptSegment {
   endTime: number;
 }
 
+function stripCodeBlocks(text: string): string {
+  // Remove markdown code blocks that Claude sometimes wraps JSON in
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return match ? match[1].trim() : text.trim();
+}
+
 function formatTranscript(segments: TranscriptSegment[]): string {
   return segments
     .map((seg) => {
@@ -77,7 +83,8 @@ ${formattedTranscript}`,
   }
 
   try {
-    const parsed = JSON.parse(textBlock.text);
+    const cleaned = stripCodeBlocks(textBlock.text);
+    const parsed = JSON.parse(cleaned);
     return {
       summary: parsed.summary || "",
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
@@ -85,9 +92,8 @@ ${formattedTranscript}`,
       keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
     };
   } catch {
-    // If JSON parsing fails, return the raw text as summary
     return {
-      summary: textBlock.text,
+      summary: textBlock.text.replace(/```json\n?|```/g, "").trim(),
       actionItems: [],
       decisions: [],
       keyPoints: [],
@@ -140,7 +146,8 @@ ${formattedTranscript}`,
   }
 
   try {
-    const parsed = JSON.parse(textBlock.text);
+    const cleaned = stripCodeBlocks(textBlock.text);
+    const parsed = JSON.parse(cleaned);
     return {
       answer: parsed.answer || textBlock.text,
       relevantTimestamps: Array.isArray(parsed.relevantTimestamps)
@@ -149,7 +156,7 @@ ${formattedTranscript}`,
     };
   } catch {
     return {
-      answer: textBlock.text,
+      answer: textBlock.text.replace(/```json\n?|```/g, "").trim(),
       relevantTimestamps: [],
     };
   }
@@ -205,7 +212,8 @@ ${meetingList}`,
   }
 
   try {
-    const parsed = JSON.parse(textBlock.text);
+    const cleaned = stripCodeBlocks(textBlock.text);
+    const parsed = JSON.parse(cleaned);
     return {
       title: parsed.title || `${reportType} Report`,
       findings: Array.isArray(parsed.findings) ? parsed.findings : [],
@@ -219,7 +227,7 @@ ${meetingList}`,
       title: `${reportType} Report`,
       findings: [],
       recommendations: [],
-      summary: textBlock.text,
+      summary: textBlock.text.replace(/```json\n?|```/g, "").trim(),
     };
   }
 }
