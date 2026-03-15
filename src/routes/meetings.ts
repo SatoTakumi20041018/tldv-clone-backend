@@ -15,10 +15,10 @@ import { processUploadedMeeting } from "../services/uploadService";
 
 const router = Router();
 
-// Multer config: memory storage for Vercel compatibility, 100MB limit
+// Multer config: memory storage for Vercel compatibility, 800MB limit
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  limits: { fileSize: 800 * 1024 * 1024 }, // 800MB
   fileFilter: (_req, file, cb) => {
     const allowedMimeTypes = [
       "video/mp4",
@@ -172,7 +172,7 @@ router.post(
         if (err.code === "LIMIT_FILE_SIZE") {
           res.status(400).json({
             name: "ValidationError",
-            message: "File too large. Maximum size is 100MB.",
+            message: "File too large. Maximum size is 800MB.",
           });
           return;
         }
