@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  password     String
+  role         String        @default("user")
+  apiKey       String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  meetings     Meeting[]     @relation("organizer")
+  teamMembers  TeamMember[]
+  webhooks     Webhook[]
+  integrations Integration[]
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  members     TeamMember[]
+  meetings    Meeting[]
+  webhooks    Webhook[]
+}
+
+model TeamMember {
+  userId String
+  teamId String
+  role   String @default("member")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([userId, teamId])
+}
+
+model Meeting {
+  id             String           @id @default(uuid())
+  name           String
+  happenedAt     DateTime
+  duration       Int?
+  url            String?
+  recordingUrl   String?
+  status         String           @default("pending")
+  organizerId    String
+  teamId         String?
+  conferenceType String?
+  conferenceId   String?
+  createdAt      DateTime         @default(now())
+  organizer      User             @relation("organizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  team           Team?            @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  invitees       MeetingInvitee[]
+  transcripts    Transcript[]
+  highlights     Highlight[]
+  aiSummaries    AISummary[]
+}
+
+model MeetingInvitee {
+  id        String  @id @default(uuid())
+  meetingId String
+  name      String
+  email     String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Transcript {
+  id        String             @id @default(uuid())
+  meetingId String
+  createdAt DateTime           @default(now())
+  meeting   Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  segments  TranscriptSegment[]
+}
+
+model TranscriptSegment {
+  id           String     @id @default(uuid())
+  transcriptId String
+  speaker      String
+  text         String
+  startTime    Float
+  endTime      Float
+  transcript   Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+}
+
+model Highlight {
+  id        String   @id @default(uuid())
+  meetingId String
+  text      String
+  startTime Float?
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  topics    Topic[]
+}
+
+model Topic {
+  id          String    @id @default(uuid())
+  highlightId String
+  title       String
+  summary     String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+}
+
+model AISummary {
+  id          String   @id @default(uuid())
+  meetingId   String
+  summary     String
+  actionItems String   @default("[]")
+  decisions   String   @default("[]")
+  template    String   @default("default")
+  createdAt   DateTime @default(now())
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Webhook {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String?
+  url       String
+  events    String   @default("[]")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+}
+
+model Integration {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  config    String   @default("{}")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
