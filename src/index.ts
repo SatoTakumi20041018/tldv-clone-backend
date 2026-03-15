@@ -14,6 +14,7 @@ import webhookRoutes from "./routes/webhooks";
 import integrationRoutes from "./routes/integrations";
 import healthRoutes from "./routes/health";
 import teamRoutes from "./routes/teams";
+import reportRoutes from "./routes/reports";
 import prisma from "./utils/prisma";
 import { initDb } from "./utils/initDb";
 
@@ -46,6 +47,7 @@ app.use("/api/v1/meetings", summaryRoutes);
 app.use("/api/v1/webhooks", webhookRoutes);
 app.use("/api/v1/integrations", integrationRoutes);
 app.use("/api/v1/teams", teamRoutes);
+app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/health", healthRoutes);
 
 app.use(errorHandler);

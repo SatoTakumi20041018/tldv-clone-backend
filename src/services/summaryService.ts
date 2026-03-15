@@ -1,6 +1,7 @@
 import prisma from "../utils/prisma";
 import { NotFoundError } from "../middleware/errorHandler";
 import { fireWebhookEvent } from "../utils/webhook";
+import { generateAISummary, isAIAvailable } from "./aiService";
 
 export async function getSummary(meetingId: string, userId: string) {
   const meeting = await prisma.meeting.findFirst({
@@ -57,26 +58,68 @@ export async function generateSummary(
   const segments = transcript?.segments || [];
   const highlights = meeting.highlights;
 
-  const speakers = [...new Set(segments.map((s) => s.speaker))];
-  const totalDuration =
-    segments.length > 0
-      ? segments[segments.length - 1].endTime - segments[0].startTime
-      : meeting.duration || 0;
+  let summaryText: string;
+  let actionItems: { assignee: string; task: string; deadline?: string }[];
+  let decisions: { decision: string; context?: string }[];
 
-  const topicSummaries = highlights
-    .flatMap((h) => h.topics)
-    .map((t) => t.title);
+  // Use real AI if available, otherwise fall back to mock generation
+  if (isAIAvailable() && segments.length > 0) {
+    try {
+      const aiResult = await generateAISummary(
+        segments.map((s) => ({
+          speaker: s.speaker,
+          text: s.text,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        })),
+        meeting.name
+      );
+      summaryText = aiResult.summary;
+      actionItems = aiResult.actionItems;
+      decisions = aiResult.decisions;
+    } catch (error) {
+      console.error("AI summary generation failed, falling back to mock:", error);
+      // Fall back to mock generation on AI error
+      const speakers = [...new Set(segments.map((s) => s.speaker))];
+      const totalDuration =
+        segments.length > 0
+          ? segments[segments.length - 1].endTime - segments[0].startTime
+          : meeting.duration || 0;
+      const topicSummaries = highlights
+        .flatMap((h) => h.topics)
+        .map((t) => t.title);
 
-  const summaryText = generateMockSummary(
-    meeting.name,
-    speakers,
-    totalDuration,
-    segments.length,
-    topicSummaries
-  );
+      summaryText = generateMockSummary(
+        meeting.name,
+        speakers,
+        totalDuration,
+        segments.length,
+        topicSummaries
+      );
+      actionItems = extractMockActionItems(segments, speakers);
+      decisions = extractMockDecisions(segments, highlights);
+    }
+  } else {
+    // Mock generation fallback
+    const speakers = [...new Set(segments.map((s) => s.speaker))];
+    const totalDuration =
+      segments.length > 0
+        ? segments[segments.length - 1].endTime - segments[0].startTime
+        : meeting.duration || 0;
+    const topicSummaries = highlights
+      .flatMap((h) => h.topics)
+      .map((t) => t.title);
 
-  const actionItems = extractMockActionItems(segments, speakers);
-  const decisions = extractMockDecisions(segments, highlights);
+    summaryText = generateMockSummary(
+      meeting.name,
+      speakers,
+      totalDuration,
+      segments.length,
+      topicSummaries
+    );
+    actionItems = extractMockActionItems(segments, speakers);
+    decisions = extractMockDecisions(segments, highlights);
+  }
 
   const summary = await prisma.aISummary.create({
     data: {

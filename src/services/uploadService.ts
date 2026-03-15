@@ -1,5 +1,6 @@
 import prisma from "../utils/prisma";
 import { fireWebhookEvent } from "../utils/webhook";
+import { generateAISummary, isAIAvailable } from "./aiService";
 
 export interface UploadMeetingOptions {
   fileName: string;
@@ -362,8 +363,25 @@ export async function processUploadedMeeting(options: UploadMeetingOptions) {
     },
   });
 
-  // 4. Generate summary from transcript
-  const summaryData = generateSummaryFromTranscript(meetingName, segments);
+  // 4. Generate summary from transcript (use real AI if available, fall back to mock)
+  let summaryData: GeneratedSummary;
+
+  if (isAIAvailable()) {
+    try {
+      const aiResult = await generateAISummary(segments, meetingName);
+      summaryData = {
+        summary: aiResult.summary,
+        actionItems: aiResult.actionItems,
+        decisions: aiResult.decisions,
+        keyPoints: aiResult.keyPoints,
+      };
+    } catch (error) {
+      console.error("AI summary generation failed during upload, falling back to mock:", error);
+      summaryData = generateSummaryFromTranscript(meetingName, segments);
+    }
+  } else {
+    summaryData = generateSummaryFromTranscript(meetingName, segments);
+  }
 
   const aiSummary = await prisma.aISummary.create({
     data: {
