@@ -206,11 +206,6 @@ router.post(
       const language = req.body.language as string | undefined;
       const teamId = req.body.teamId as string | undefined;
 
-      // Simulate processing delay (2-3 seconds)
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2000 + Math.random() * 1000)
-      );
-
       const result = await processUploadedMeeting({
         fileName: req.file.originalname,
         fileSize: req.file.size,
@@ -221,7 +216,11 @@ router.post(
         teamId,
       });
 
-      res.status(201).json(result);
+      // Return a clear, well-structured response
+      res.status(201).json({
+        success: true,
+        meeting: result,
+      });
     } catch (error: unknown) {
       if (error && typeof error === "object" && "statusCode" in error) {
         const appError = error as { statusCode: number; name: string; message: string };
